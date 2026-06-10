@@ -1,63 +1,65 @@
-# LTR URDU-AMIK
+<div align="center">
 
-**LTR URDU-AMIK** is a specialized bidirectional (BiDi) text processing system designed to resolve rendering issues when mixing Urdu (RTL) and English (LTR) text in Left-to-Right (LTR) environments (such as text editors, terminals, and word processors).
+# 🌍 LTR URDU-AMIK (ال-ٹی-ار اردو-اے ایم آئی کے)
 
-Historically, mixed Urdu/English text renders incorrectly in strictly LTR containers. Punctuation jumps to the wrong side of clauses, numbers flip order, and the reading sequence gets scrambled. LTR URDU-AMIK solves this by injecting precise, invisible Unicode control characters that lock the visual order.
+### بائی ڈائریکشنل ٹیکسٹ پروسیسر برائے ال-ٹی-ار (LTR) ماحول
 
----
-
-## Key Features
-
-- **Directional Isolation**: Uses Unicode 6.3+ isolation control characters (FSI/PDI) to isolate English words and numbers.
-- **Punctuation Correction**: Injects Right-to-Left Marks (RLM) after English punctuation that follows Urdu text to keep them correctly aligned.
-- **Strict LTR UI**: The web processor UI textareas are configured with `dir="ltr"` to prove the processed text renders flawlessly in LTR containers.
-- **Zero Dependencies**: Core processor logic is written in lightweight, pure Vanilla JavaScript.
-- **Real-Time Interface**: A clean React + Vite application for converting text on the fly.
+[![Language - English](https://img.shields.io/badge/Language-English-blue?style=flat-square)](README-en.md)
+[![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)](#)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)](#)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)](#)
+[![License - MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](#)
 
 ---
 
-## Core Algorithm (`processor.js`)
+[📖 English Version / انگریزی ترجمہ کے لیے یہاں کلک کریں](README-en.md)
 
-The utility processes mixed text line-by-line using a two-step approach:
-
-1. **Punctuation Adjustment**:
-   It detects Urdu text immediately followed by English/neutral punctuation (like `.` `,` `?` `!` `(` `)` etc.) and injects a strong Right-to-Left Mark (`\u200F`) right after it. This forces the BiDi layout engine to keep the punctuation on the natural end (left side) of the Urdu clause.
-   
-2. **Latin Segment Isolation**:
-   It identifies contiguous runs of Latin characters (English words, numbers, and internal spaces/punctuation) and wraps them in a First Strong Isolate (`\u2068`) and Pop Directional Isolate (`\u2069`). This shields the English text from leaking its directionality to adjacent Urdu characters.
+</div>
 
 ---
 
-## Web Interface Tool (`WEBISTE`)
+> [!NOTE]
+> **LTR URDU-AMIK** ایک جدید بائی ڈائریکشنل (BiDi) ٹیکسٹ پروسیسنگ سسٹم ہے جو اردو (RTL) اور انگریزی (LTR) کے مخلوط متن (mixed text) کو LTR والے ماحول (جیسے ٹیکسٹ ایڈیٹرز، ٹرمینلز اور ورڈ پروسیسرز) میں درست طریقے سے دکھانے کے لیے ڈیزائن کیا گیا ہے۔
 
-The Phase 1 Web Interface Tool is located in the `WEBISTE/` folder. It is built as a minimal React + Vite application focusing purely on functionality and clean light/dark mode aesthetics.
-
-### Setup and Running Locally
-
-To run the web interface tool on your machine, follow these steps:
-
-1. Navigate to the `WEBISTE` directory:
-   ```bash
-   cd WEBISTE
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the Vite local development server:
-   ```bash
-   npm run dev
-   ```
-
-4. Build for production:
-   ```bash
-   npm run build
-   ```
+عام طور پر، مخلوط اردو/انگریزی متن LTR کنٹینرز میں غلط طریقے سے ظاہر ہوتا ہے۔ رموزِ اوقاف (punctuation) جملے کی غلط سمت میں چلے جاتے ہیں، نمبروں کی ترتیب الٹ جاتی ہے، اور پڑھنے کی ترتیب گڑبڑ ہو جاتی ہے۔ LTR URDU-AMIK پوشیدہ یونیکوڈ کنٹرول کریکٹرز شامل کر کے اس مسئلے کو حل کرتا ہے، جو متن کی ظاہری ترتیب کو لاک کر دیتے ہیں۔
 
 ---
 
-## License
+## 🚀 اہم خصوصیات
 
-This project is open-source and available under the MIT License.
+* **`سمتی علیحدگی` (Directional Isolation)**: انگریزی الفاظ اور نمبروں کو الگ کرنے کے لیے یونیکوڈ 6.3+ آئسولیشن کنٹرول کریکٹرز (FSI/PDI) کا استعمال کرتا ہے۔
+* **`رموزِ اوقاف کی درستگی` (Punctuation Correction)**: اردو متن کے بعد آنے والے انگریزی رموزِ اوقاف کے بعد رائٹ ٹو لیفٹ مارک (RLM) شامل کرتا ہے تاکہ وہ اپنی جگہ درست رہیں۔
+* **`خالص LTR انٹرفیس` (Strict LTR UI)**: ویب پروسیسر کے ٹیکسٹ ایریاز میں `dir="ltr"` سیٹ کیا گیا ہے تاکہ یہ ثابت ہو سکے کہ پراسیس شدہ متن LTR کنٹینرز میں بالکل درست نظر آتا ہے۔
+* **`ٹائپ اسکرپٹ انٹیگریشن` (TypeScript Support)**: مکمل طور پر ٹائپ اسکرپٹ (TypeScript) اور ری ایکٹ کانٹیکسٹ (React Context) پر مبنی سسٹم۔
+
+---
+
+## 🛠️ بنیادی الگورتھم (`processor.ts`)
+
+یہ پروسیسر دو مراحل پر مشتمل طریقہ کار کے ذریعے لائن بہ لائن کام کرتا ہے:
+
+> [!IMPORTANT]
+> 1. **رموزِ اوقاف کی درستگی**:
+>    جب اردو متن کے فوراً بعد انگریزی/غیر جانبدار رموزِ اوقاف (جیسے `.` `,` `?` `!` `(` `)` وغیرہ) آتے ہیں، تو یہ ان کے بعد ایک مضبوط رائٹ ٹو لیفٹ مارک (`\u200F`) داخل کرتا ہے۔ یہ بائی ڈائریکشنل لے آؤٹ انجن کو مجبور کرتا ہے کہ وہ رموزِ اوقاف کو اردو جملے کے بائیں جانب رکھے۔
+> 
+> 2. **لاطینی حصوں کی علیحدگی (Latin Segment Isolation)**:
+>    یہ لاطینی حروف (انگریزی الفاظ، نمبرز، اور ان کے درمیانی فاصلے یا رموزِ اوقاف) کے سلسلوں کی نشاندہی کرتا ہے اور انہیں First Strong Isolate (`\u2068`) اور Pop Directional Isolate (`\u2069`) میں لپیٹ دیتا ہے۔ یہ انگریزی متن کو ساتھ والے اردو حروف پر اپنی سمت اثر انداز کرنے سے روکتا ہے۔
+
+---
+
+## 📂 ویب انٹرفیس ٹول (`WEBISTE`)
+
+مقامی ڈیولپمنٹ سرور شروع کرنے کے لیے درج ذیل مراحل پر عمل کریں:
+
+| مرحلہ | کمانڈ | تفصیل |
+| :---: | :--- | :--- |
+| **1** | `cd WEBISTE` | پروجیکٹ ڈائریکٹری میں جائیں |
+| **2** | `npm install` | انحصار انسٹال کریں |
+| **3** | `npm run dev` | مقامی سرور شروع کریں |
+| **4** | `npm run build` | پروڈکشن بلڈ تیار کریں |
+
+---
+
+## 📄 لائسنس
+
+یہ پروجیکٹ اوپن سورس ہے اور MIT لائسنس کے تحت دستیاب ہے۔
