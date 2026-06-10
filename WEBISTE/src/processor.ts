@@ -2,36 +2,92 @@
  * Processes mixed Urdu (RTL) and English (LTR) text for LTR-only environments.
  *
  * Rules:
- * 1. English Word Reversal: Continuous runs of English words, numbers, and
- *    bracketed blocks (separated by spaces) are reversed word-by-word
+ * 1. Bracket Isolation & Reversal: Bracketed expressions like (code write) are
+ *    isolated. The words inside are reversed, but the brackets stay in their
+ *    natural positions at the start and end of the block.
+ * 2. English Word Reversal: Continuous runs of English words, numbers, and
+ *    placeholders (separated by spaces) are reversed word-by-word
  *    to match the RTL reading sequence.
- * 2. Bracket Isolation: Parenthesized/bracketed expressions are treated
- *    as elements of the LTR runs and stay intact.
  * 3. Punctuation Attachment: Sentence-ending punctuation following Urdu text
  *    receives an RLM marker (\u200F) to lock it to the end of the clause.
  *
  * @param {string} text - The input mixed text.
  * @returns {string} - The processed LTR-safe text.
  */
+
+function cleanDoubleMarkers(text: string): string {
+  return text
+    .replace(/\u2068\u2068/g, '\u2068')
+    .replace(/\u2069\u2069/g, '\u2069');
+}
+
+function restorePlaceholders(text: string, placeholdersMap: Map<string, string>): string {
+  let result = text;
+  const entries = Array.from(placeholdersMap.entries());
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const [placeholder, original] = entries[i];
+    result = result.replace(placeholder, original);
+  }
+  return result;
+}
+
 export function processBiDiText(text: string): string {
   if (!text) return "";
 
-  const lines = text.split("\n");
+  // Phase 1: Pre-processing (Replace code blocks, URLs, HTML tags, links with placeholders)
+  const placeholdersMap = new Map<string, string>();
+  let placeholderCounter = 0;
+
+  function createPlaceholder(content: string, type: string): string {
+    const placeholder = `__${type.toUpperCase()}_PLACEHOLDER_${placeholderCounter}__`;
+    placeholdersMap.set(placeholder, content);
+    placeholderCounter++;
+    return placeholder;
+  }
+
+  let tempText = text;
+  // 1. Code blocks
+  tempText = tempText.replace(/```[\s\S]*?```|`[^`]+`/g, (match) => createPlaceholder(match, 'code'));
+  // 2. HTML tags
+  tempText = tempText.replace(/<\/?[a-z][\s\S]*?>/gi, (match) => createPlaceholder(match, 'html'));
+  // 3. Markdown links
+  tempText = tempText.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match) => createPlaceholder(match, 'link'));
+  // 4. URLs
+  tempText = tempText.replace(/https?:\/\/[^\s)]+/g, (match) => createPlaceholder(match, 'url'));
+
+  // Phase 2: Check Idempotency
+  const hasExistingBidi = tempText.includes('\u2068') || tempText.includes('\u2069');
+  if (hasExistingBidi) {
+    tempText = cleanDoubleMarkers(tempText);
+    return restorePlaceholders(tempText, placeholdersMap);
+  }
+
+  // Proceed with normal BiDi processing line-by-line
+  const lines = tempText.split("\n");
   const processedLines = lines.map((line) => {
     if (!line) return "";
 
     const urduPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
     const latinPattern = /[a-zA-Z0-9]|\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/;
 
-    // Only process lines that contain both Urdu and English/numeric/bracketed content
     if (urduPattern.test(line) && latinPattern.test(line)) {
-      // Regular expression to tokenize the line:
-      // Group 1: Urdu/Arabic runs of characters
-      // Group 2: English, numbers, and bracketed blocks merged into continuous runs (separated by spaces)
-      // Group 3: Sentence-ending and standard punctuation marks
-      // Group 4: Whitespace runs separating other elements
-      // Group 5: Any other single character
-      const tokenRegex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+)|((?:\([^)]*\)|\[[^\]]*\]|\{[^}]*\}|[a-zA-Z0-9]+)(?:\s+(?:\u2068|\u2069)*(?:\([^)]*\)|\[[^\]]*\]|\{[^}]*\}|[a-zA-Z0-9]+))*)|([.,?!;:۔!؟]+)|(\s+)|(.)/g;
+      // Step 1: Find innermost brackets and extract them recursively
+      const innerBracketRegex = /\([^()\[\]{}]*\)|\[[^()\[\]{}]*\]|\{[^()\[\]{}]*\}/;
+      const bracketPlaceholdersMap = new Map<string, string>();
+      let bracketPlaceholderCounter = 0;
+
+      let tempLine = line;
+      while (innerBracketRegex.test(tempLine)) {
+        tempLine = tempLine.replace(innerBracketRegex, (match) => {
+          const placeholder = `__BRACKET_PLACEHOLDER_${bracketPlaceholderCounter}__`;
+          bracketPlaceholdersMap.set(placeholder, match);
+          bracketPlaceholderCounter++;
+          return placeholder;
+        });
+      }
+
+      // Step 2: Tokenize and process the remaining text (including placeholders)
+      const tokenRegex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+)|((?:[a-zA-Z0-9_]+)(?:\s+(?:\u2068|\u2069)*(?:[a-zA-Z0-9_]+))*)|([.,?!;:۔!؟]+)|(\s+)|(.)/g;
 
       interface Token {
         text: string;
@@ -42,8 +98,7 @@ export function processBiDiText(text: string): string {
       let match: RegExpExecArray | null;
       tokenRegex.lastIndex = 0;
 
-      // Tokenize the line into typed blocks
-      while ((match = tokenRegex.exec(line)) !== null) {
+      while ((match = tokenRegex.exec(tempLine)) !== null) {
         const tokenText = match[0];
         let type: Token["type"] = "other";
 
@@ -58,15 +113,19 @@ export function processBiDiText(text: string): string {
       // Process tokens
       const processedTokens = tokens.map((token, index) => {
         if (token.type === "english") {
-          // Split by spaces, reverse elements (words/brackets), and join back
+          // If it's a single placeholder, do not wrap in FSI/PDI during this pass
+          const isSinglePlaceholder = /^__BRACKET_PLACEHOLDER_\d+__$/.test(token.text) ||
+                                      /^__[A-Z]+_PLACEHOLDER_\d+__$/.test(token.text);
+          if (isSinglePlaceholder) {
+            return token.text;
+          }
+
           const words = token.text.split(/\s+/);
           const reversedText = words.reverse().join(" ");
-          // Wrap in FSI (U+2068) and PDI (U+2069)
           return `\u2068${reversedText}\u2069`;
         }
 
         if (token.type === "punctuation") {
-          // Find the preceding non-space token
           let isPrecedingUrdu = false;
           for (let j = index - 1; j >= 0; j--) {
             if (tokens[j].type !== "space") {
@@ -77,7 +136,6 @@ export function processBiDiText(text: string): string {
             }
           }
 
-          // If preceded by Urdu, append RLM (U+200F)
           if (isPrecedingUrdu) {
             return `${token.text}\u200F`;
           }
@@ -86,11 +144,59 @@ export function processBiDiText(text: string): string {
         return token.text;
       });
 
-      return processedTokens.join("");
+      const reconstructedLine = processedTokens.join("");
+
+      // Step 3: Process bracketed content independently (inside-out)
+      const processedBracketMap = new Map<string, string>();
+      for (let i = 0; i < bracketPlaceholderCounter; i++) {
+        const placeholder = `__BRACKET_PLACEHOLDER_${i}__`;
+        const originalBracket = bracketPlaceholdersMap.get(placeholder);
+        if (!originalBracket) continue;
+
+        const firstChar = originalBracket[0];
+        const lastChar = originalBracket[originalBracket.length - 1];
+        const insideText = originalBracket.slice(1, -1);
+
+        const words = insideText.split(/\s+/).filter((w) => w.length > 0);
+        const reversedInsideText = words.reverse().join(" ");
+        const processedInsideText = `${firstChar}${reversedInsideText}${lastChar}`;
+
+        processedBracketMap.set(placeholder, `\u2068${processedInsideText}\u2069`);
+      }
+
+      // Step 4: Recursively replace inner placeholders inside outer placeholders
+      for (let i = 0; i < bracketPlaceholderCounter; i++) {
+        const innerPlaceholder = `__BRACKET_PLACEHOLDER_${i}__`;
+        const innerValue = processedBracketMap.get(innerPlaceholder);
+        if (!innerValue) continue;
+
+        for (let j = i + 1; j < bracketPlaceholderCounter; j++) {
+          const outerPlaceholder = `__BRACKET_PLACEHOLDER_${j}__`;
+          const outerValue = processedBracketMap.get(outerPlaceholder);
+          if (outerValue && outerValue.includes(innerPlaceholder)) {
+            processedBracketMap.set(outerPlaceholder, outerValue.replace(innerPlaceholder, innerValue));
+          }
+        }
+      }
+
+      // Step 5: Replace placeholders in reconstructed line
+      let finalLine = reconstructedLine;
+      for (let i = 0; i < bracketPlaceholderCounter; i++) {
+        const placeholder = `__BRACKET_PLACEHOLDER_${i}__`;
+        const value = processedBracketMap.get(placeholder);
+        if (value) {
+          finalLine = finalLine.replace(placeholder, value);
+        }
+      }
+
+      return finalLine;
     }
 
     return line;
   });
 
-  return processedLines.join("\n");
+  const resultText = processedLines.join("\n");
+
+  // Phase 3: Post-processing (Restore placeholders)
+  return restorePlaceholders(resultText, placeholdersMap);
 }
